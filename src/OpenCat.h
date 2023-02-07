@@ -213,8 +213,10 @@ byte pwm_pin[] = { 12, 11, 4, 3,
 #define T_INDEXED_SEQUENTIAL_ASC 'm'
 #define T_MELODY 'o'
 #define T_PAUSE 'p'
+#define T_TASK_QUEUE 'q'
 #define T_RAMP 'r'
 #define T_SAVE 's'
+#define T_SOUND 'S'
 #define T_TILT 't'
 #define T_MEOW 'u'
 #define T_PRINT_GYRO 'v'  //print Gyro data
@@ -235,8 +237,8 @@ byte pwm_pin[] = { 12, 11, 4, 3,
 #define T_BEEP_BIN 'B'
 #define T_SKILL_DATA 'K'
 #define T_LISTED_BIN 'L'
-#define T_SERVO_MICROSECOND 'S'
-#define T_TEMP 'T'  //call the last skill data received from the serial port
+#define T_SERVO_MICROSECOND 'W'  //PWM width modulation
+#define T_TEMP 'T'               //call the last skill data received from the serial port
 #endif
 
 float degPerRad = 180.0 / M_PI;
@@ -382,13 +384,24 @@ template<typename T> void arrayNCPY(T *destination, const T *source, int len) { 
 #include "camera.h"
 #elif defined ULTRASONIC
 #include "ultrasonic.h"
+#elif defined GESTURE
+#include "gesture.h"
 #elif defined OTHER_MODULES
+#elif defined TASK_QUEUE
 #else
 #define GYRO_PIN 0
 #endif
 
 #ifndef MAIN_SKETCH
 #define GYRO_PIN 0
+#endif
+
+#ifndef GYRO_PIN
+#define TASK_QUEUE
+#endif
+
+#ifdef TASK_QUEUE
+#include "taskQueue.h"
 #endif
 
 #if defined NyBoard_V0_1 || defined NyBoard_V0_2
@@ -448,6 +461,9 @@ void initRobot() {
 #ifdef CAMERA
   cameraSetup();
 #endif
+#ifdef GESTURE
+  gestureSetup();
+#endif
 
   playMelody(MELODY_NORMAL);
 
@@ -466,6 +482,9 @@ void initRobot() {
 #elif defined CUB
   PTLF("Cub");
 #endif
+#ifdef TASK_QUEUE
+  tQueue = new TaskQueue();
+#endif
   //----------------------------------
 #else  // ** save parameters to device's static memory
   configureEEPROM();
@@ -474,6 +493,9 @@ void initRobot() {
   imuSetup();
 #endif
 #endif  // **
+
+  allCalibratedPWM(currentAng);  //soft boot for servos
+  delay(500);
   PTLF("Ready!");
 #ifndef MAIN_SKETCH
   PCA9685CalibrationPrompt();
